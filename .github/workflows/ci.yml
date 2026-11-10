@@ -95,13 +95,25 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: backend
-          push: false
+          load: true
+          tags: callpilot-backend:ci
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
       - name: Frontend image
         uses: docker/build-push-action@v6
         with:
           context: frontend
-          push: false
+          load: true
+          tags: callpilot-frontend:ci
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
+      - name: Smoke test the images
+        run: |
+          docker run -d --name api -p 8000:8000 callpilot-backend:ci
+          docker run -d --name web -p 3000:3000 callpilot-frontend:ci
+          for i in $(seq 1 30); do curl -fs localhost:8000/health && break; sleep 1; done
+          curl -fs localhost:8000/api/config > /dev/null
+          for i in $(seq 1 30); do curl -fs localhost:3000/ > /dev/null && break; sleep 1; done
+          # The audio worklets must ship in the image, or calls can't start.
+          curl -fs localhost:3000/worklets/capture-processor.js > /dev/null
+          curl -fs localhost:3000/worklets/playback-processor.js > /dev/null
