@@ -145,3 +145,10 @@ async def summarize_call(
             summary = await PlainSummarizer().summarize(transcript, outcome)
     conn.execute("UPDATE calls SET summary = ? WHERE id = ?", (summary, call_id))
     return summary
+
+
+def schedule_summary(app: Any, call_id: str) -> None:
+    """Summarise a finished call in the background; the caller has already hung up."""
+    task = asyncio.create_task(summarize_call(app.state.db, call_id, app.state.summarizer))
+    app.state.background_tasks.add(task)
+    task.add_done_callback(app.state.background_tasks.discard)

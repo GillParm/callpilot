@@ -17,7 +17,6 @@ Wire protocol (one socket per call, `/ws/call?mode=voice|text`):
 
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import json
 import logging
@@ -26,7 +25,7 @@ from typing import Any
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
 
-from callpilot.calllog.summarizer import summarize_call
+from callpilot.calllog.summarizer import schedule_summary
 from callpilot.providers.base import Mode, ProviderUnavailableError
 from callpilot.session.call_session import CallSession
 from callpilot.session.factory import build_session
@@ -98,13 +97,6 @@ async def browser_call(websocket: WebSocket, mode: Mode = "voice") -> None:
         with contextlib.suppress(RuntimeError):
             await websocket.close()
         schedule_summary(app, session.call_id)
-
-
-def schedule_summary(app: Any, call_id: str) -> None:
-    """Summarise the call in the background; the caller has already hung up."""
-    task = asyncio.create_task(summarize_call(app.state.db, call_id, app.state.summarizer))
-    app.state.background_tasks.add(task)
-    task.add_done_callback(app.state.background_tasks.discard)
 
 
 async def _handle_control(session: CallSession, raw: str) -> bool:
