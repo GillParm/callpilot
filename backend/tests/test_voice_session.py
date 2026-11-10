@@ -184,6 +184,21 @@ async def test_time_to_first_audio_is_measured_from_the_last_voiced_frame(voice:
     assert metric["latency_ms"] == 800
     assert metric["endpointing_ms"] == 500
     assert metric["response_ms"] == 300
+    assert metric["overlapped"] is False
+
+
+async def test_overlapping_speech_is_flagged(voice: Any) -> None:
+    session, provider, transport, clock = voice
+    provider.push(CallerSpeechStarted())
+    await settle()
+    for _ in range(10):
+        clock.now += 0.02
+        await session.caller_audio(LOUD_20MS)
+    # The agent starts answering while the caller is still mid-sentence.
+    provider.push(ResponseStarted(), AgentAudio(b"\x00\x00" * 480))
+    await settle()
+    [metric] = transport.of_type("metrics.turn")
+    assert metric["overlapped"] is True
 
 
 async def test_client_reported_latency_is_recorded(voice: Any, conn: sqlite3.Connection) -> None:

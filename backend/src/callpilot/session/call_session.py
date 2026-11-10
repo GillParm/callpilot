@@ -61,6 +61,8 @@ BYTES_PER_MS = SAMPLE_RATE * 2 // 1000
 PLAYBACK_REPORT_SLACK_MS = 150
 # A VAD timestamp older than this belongs to an earlier turn, not this one.
 MAX_PLAUSIBLE_LATENCY_S = 15.0
+# Faster than any real response: the caller's speech overlapped the reply.
+OVERLAP_THRESHOLD_MS = 150
 
 
 class CallTransport(Protocol):
@@ -356,6 +358,9 @@ class CallSession:
                 spoke_until = self._speech_stopped_at or turn.started_at
             metric["kind"] = "time_to_first_audio"
             metric["latency_ms"] = round((now - spoke_until) * 1000)
+            # The caller was still talking when the agent started (the provider
+            # cut their sentence at a pause). Not a real response time.
+            metric["overlapped"] = metric["latency_ms"] < OVERLAP_THRESHOLD_MS
             if self._speech_stopped_at is not None:
                 metric["endpointing_ms"] = max(
                     0, round((self._speech_stopped_at - spoke_until) * 1000)

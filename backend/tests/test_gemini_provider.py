@@ -19,7 +19,7 @@ from callpilot.providers.base import (
     SessionConfig,
     ToolCallRequested,
 )
-from callpilot.providers.gemini_live import GeminiLiveProvider, build_live_config
+from callpilot.providers.gemini_live import GeminiLiveProvider, build_live_config, join_transcript
 from callpilot.tools.registry import AGENT_TOOLS
 
 CONFIG = SessionConfig(instructions="be nice", tools=AGENT_TOOLS, mode="voice", greeting=GREETING)
@@ -125,3 +125,10 @@ async def test_local_interrupt_drops_the_rest_of_the_response() -> None:
     p.handle_message(content(turn_complete=True))
     p.handle_message(audio(b"\x05\x05"))  # the next turn plays normally
     assert AgentAudio(b"\x05\x05") in drain(p)
+
+
+def test_join_transcript_repairs_missing_spaces() -> None:
+    assert join_transcript(["My name is Maria Lopez.", "March 14th"]) == (
+        "My name is Maria Lopez. March 14th"
+    )
+    assert join_transcript(["I'd like ", "a clean", "ing"]) == "I'd like a cleaning"
