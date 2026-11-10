@@ -5,6 +5,13 @@ export function formatMs(ms: number): string {
   return `${(ms / 1000).toFixed(ms < 10_000 ? 2 : 1)} s`;
 }
 
+/** Compact labels for chart axes: "500 ms", "1.5 s", "2 s". */
+export function axisLabel(ms: number): string {
+  if (ms === 0) return "0";
+  if (ms < 1000) return `${ms} ms`;
+  return `${Number((ms / 1000).toFixed(1))} s`;
+}
+
 export function clock(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;

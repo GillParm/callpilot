@@ -8,7 +8,7 @@ import { useState } from "react";
 
 import type { TurnStats } from "@/lib/call-state";
 
-import { formatMs, percentile } from "./format";
+import { axisLabel, formatMs, percentile } from "./format";
 
 const CHART_HEIGHT = 128;
 
@@ -33,7 +33,6 @@ export function LatencyPanel({ turns, bargeIns }: { turns: TurnStats[]; bargeIns
   const p50 = percentile(values, 0.5);
   const p90 = percentile(values, 0.9);
   const isText = turns[0]?.kind === "time_to_first_token";
-  const metricName = isText ? "time to first token" : "time to first audio";
   const { max, step } = niceCeiling(
     Math.max(1, ...turns.map((t) => Math.max(t.latencyMs, t.perceivedMs ?? 0))),
   );
@@ -43,10 +42,15 @@ export function LatencyPanel({ turns, bargeIns }: { turns: TurnStats[]; bargeIns
 
   return (
     <div className="space-y-5">
+      <p className="text-sm text-ink-muted">
+        {isText
+          ? "How long after each message Robin starts replying."
+          : "How long the caller waits, from their last word to Robin's first sound."}
+      </p>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat value={p50 === null ? "-" : formatMs(p50)} label={`Median ${metricName}`} />
+        <Stat value={p50 === null ? "-" : formatMs(p50)} label="Median wait" />
         <Stat value={p90 === null ? "-" : formatMs(p90)} label="90th percentile" />
-        <Stat value={String(measured.length)} label="Turns measured" />
+        <Stat value={String(measured.length)} label="Turns" />
         <Stat value={String(bargeIns)} label="Interruptions" />
       </div>
 
@@ -63,7 +67,7 @@ export function LatencyPanel({ turns, bargeIns }: { turns: TurnStats[]; bargeIns
                   className="absolute right-0 translate-y-1/2 tabular-nums"
                   style={{ bottom: y(g) }}
                 >
-                  {g === 0 ? "0" : formatMs(g)}
+                  {axisLabel(g)}
                 </span>
               ))}
             </div>
@@ -108,7 +112,7 @@ export function LatencyPanel({ turns, bargeIns }: { turns: TurnStats[]; bargeIns
                 <div className="pointer-events-none absolute -top-2 right-0 z-10 max-w-64 rounded bg-ink px-2 py-1.5 text-xs text-surface">
                   <div className="font-semibold">Turn {active.turn}</div>
                   <div>
-                    {formatMs(active.latencyMs)} {metricName}
+                    {formatMs(active.latencyMs)} to first {isText ? "token" : "audio"}
                     {active.overlapped && " (caller was still talking)"}
                   </div>
                   {active.endpointingMs !== undefined && (

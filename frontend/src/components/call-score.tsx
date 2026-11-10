@@ -114,7 +114,7 @@ export function CallScore({ segments, latency, bargeIns, nowMs }: CallScoreProps
                       className="absolute top-0.5 flex h-4 items-start justify-center border-x border-t border-ink-muted"
                       style={{ left: x(mark.at - mark.latencyMs), width: x(mark.latencyMs) }}
                     >
-                      <span className="-mt-3.5 bg-surface px-1 text-[11px] leading-none tabular-nums text-ink-muted">
+                      <span className="-mt-3.5 bg-surface px-1 text-[11px] leading-none whitespace-nowrap tabular-nums text-ink-muted">
                         {formatMs(mark.latencyMs)}
                       </span>
                     </div>
@@ -131,6 +131,12 @@ export function CallScore({ segments, latency, bargeIns, nowMs }: CallScoreProps
               aria-label={`Caller interrupted at ${clock(at)}`}
             />
           ))}
+
+          {segments.length === 0 && (
+            <p className="absolute inset-0 flex items-center justify-center text-sm text-ink-muted">
+              <span className="bg-surface px-3">The timeline fills in as the call happens.</span>
+            </p>
+          )}
 
           {hover && (
             <div
