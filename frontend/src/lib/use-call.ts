@@ -3,7 +3,7 @@
 // Runs one call: opens the WebSocket, streams the mic, plays agent audio and
 // feeds everything into the call reducer.
 
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
 import { AudioEngine, MicrophoneBlockedError } from "./audio-engine";
 import { callReducer, initialCallState } from "./call-state";
@@ -28,6 +28,7 @@ export function useCall(backendUrl: string) {
   const socketRef = useRef<WebSocket | null>(null);
   const engineRef = useRef<AudioEngine | null>(null);
   const startedAtRef = useRef(0);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
   /** Mic loudness 0..1, read by the level meter on animation frames. */
   const levelRef = useRef(0);
 
@@ -53,6 +54,7 @@ export function useCall(backendUrl: string) {
       await teardown();
       dispatch({ type: "connect", mode });
       startedAtRef.current = performance.now();
+      setStartedAt(startedAtRef.current);
 
       // Local speech tracking (voice mode).
       let voicedMs = 0;
@@ -166,5 +168,5 @@ export function useCall(backendUrl: string) {
 
   useEffect(() => () => void teardown(), [teardown]);
 
-  return { state, start, hangUp, sendText, levelRef };
+  return { state, start, hangUp, sendText, levelRef, startedAt };
 }

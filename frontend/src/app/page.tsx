@@ -1,7 +1,22 @@
+import { connection } from "next/server";
+import { Suspense } from "react";
+
+import { CallConsole } from "@/components/call-console";
+import { fetchBackendConfig, publicBackendUrl } from "@/lib/backend";
+
+async function Console() {
+  // Backend URLs come from the environment at request time, not build time.
+  await connection();
+  const config = await fetchBackendConfig();
+  return <CallConsole backendUrl={publicBackendUrl()} config={config} />;
+}
+
 export default function Home() {
   return (
-    <main className="flex flex-1 items-center justify-center p-8">
-      <h1 className="text-2xl font-semibold tracking-tight">CallPilot</h1>
-    </main>
+    <Suspense
+      fallback={<div className="mx-auto max-w-7xl px-6 py-10 text-ink-muted">Loading the console...</div>}
+    >
+      <Console />
+    </Suspense>
   );
 }
