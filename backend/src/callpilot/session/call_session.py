@@ -90,6 +90,7 @@ class CallSession:
         self._agent_text: list[str] = []
         self._turn: TurnTimer | None = None
         self._turn_count = 0
+        self._played_ms: int | None = None
 
     @property
     def state(self) -> ConversationState:
@@ -147,6 +148,23 @@ class CallSession:
         self.recorder.record("transcript", {"role": "caller", "text": text})
         await self.transport.send_event({"type": "transcript", "role": "caller", "text": text})
         await self.provider.send_text(text)
+
+    async def caller_audio(self, pcm: bytes) -> None:
+        if self.ended or self.mode != "voice":
+            return
+        await self.provider.send_audio(pcm)
+
+    def playback_progress(self, played_ms: int) -> None:
+        """The client reports how much of the current agent response it has played."""
+        self._played_ms = max(0, played_ms)
+
+    def record_client_latency(self, message: dict[str, Any]) -> None:
+        """Latency as the caller perceived it, measured in the browser."""
+        perceived = message.get("perceived_ms")
+        if isinstance(perceived, int | float) and 0 <= perceived < 60_000:
+            self.recorder.record(
+                "client_latency", {"turn": message.get("turn"), "perceived_ms": int(perceived)}
+            )
 
     # Provider events ---------------------------------------------------------
 
