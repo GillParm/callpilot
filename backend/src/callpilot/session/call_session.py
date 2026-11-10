@@ -155,6 +155,7 @@ class CallSession:
         if self._ended.is_set():
             return
         self._ended.set()
+        self._flush_open_activity()
         self.recorder.record("call_ended", {"reason": reason})
         self.recorder.finish(outcome=self.state.outcome)
         await self.provider.close()
@@ -345,6 +346,23 @@ class CallSession:
     def _record_segment(self, lane: str, start_ms: int, end_ms: int | None = None) -> None:
         end = self.recorder.elapsed_ms() if end_ms is None else end_ms
         self.recorder.record("segment", {"lane": lane, "start_ms": start_ms, "end_ms": end})
+
+    def _flush_open_activity(self) -> None:
+        """At hang-up, keep whatever was mid-flight: the agent's half-finished
+        sentence, its audio so far and any speech still in progress."""
+        if self._agent_text:
+            partial = "".join(self._agent_text)
+            self._agent_text.clear()
+            self.recorder.record(
+                "transcript", {"role": "agent", "text": partial, "interrupted": True}
+            )
+        heard = None
+        if self._played_ms is not None and self._response_audio_ms:
+            heard = int(min(self._played_ms, self._response_audio_ms))
+        self._close_agent_segment(heard)
+        if self._caller_speech_from is not None:
+            self._record_segment("caller", self._caller_speech_from)
+            self._caller_speech_from = None
 
     def _close_agent_segment(self, heard_ms: int | None = None) -> None:
         """Record how long the agent was audible: what was sent, or heard if cut off."""

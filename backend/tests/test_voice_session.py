@@ -14,6 +14,7 @@ import pytest
 
 from callpilot.providers.base import (
     AgentAudio,
+    AgentTextDelta,
     CallerSpeechStarted,
     CallerSpeechStopped,
     CallerTranscript,
@@ -233,3 +234,22 @@ async def test_speech_segments_are_recorded_for_the_call_log(
     first_agent, cut_off = segments[1], segments[2]
     assert first_agent["end_ms"] - first_agent["start_ms"] == 1000
     assert cut_off["end_ms"] - cut_off["start_ms"] == 400
+
+
+async def test_hanging_up_mid_answer_keeps_what_was_said(
+    voice: Any, conn: sqlite3.Connection
+) -> None:
+    session, provider, _, _ = voice
+    provider.push(ResponseStarted(), AgentAudio(ONE_SECOND_OF_AUDIO), AgentTextDelta("I have nine"))
+    await settle()
+    session.playback_progress(600)
+    await session.hang_up()
+
+    rows = conn.execute(
+        "SELECT type, payload FROM call_events WHERE call_id = ? ORDER BY id", (session.call_id,)
+    ).fetchall()
+    events = [(r["type"], json.loads(r["payload"])) for r in rows]
+    transcript = [p for t, p in events if t == "transcript"]
+    assert transcript[-1] == {"role": "agent", "text": "I have nine", "interrupted": True}
+    [agent] = [p for t, p in events if t == "segment" and p["lane"] == "agent"]
+    assert agent["end_ms"] - agent["start_ms"] == 600
