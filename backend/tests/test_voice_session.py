@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import sqlite3
 from datetime import datetime
 from typing import Any, ClassVar
@@ -207,3 +208,28 @@ async def test_client_reported_latency_is_recorded(voice: Any, conn: sqlite3.Con
     session.record_client_latency({"turn": 2, "perceived_ms": "nonsense"})
     rows = conn.execute("SELECT payload FROM call_events WHERE type = 'client_latency'").fetchall()
     assert len(rows) == 1
+
+
+async def test_speech_segments_are_recorded_for_the_call_log(
+    voice: Any, conn: sqlite3.Connection
+) -> None:
+    session, provider, _, _ = voice
+    provider.push(CallerSpeechStarted(), CallerSpeechStopped())
+    provider.push(ResponseStarted(), AgentAudio(ONE_SECOND_OF_AUDIO), ResponseDone())
+    await settle()
+    # A second response the caller cuts off after 400 ms.
+    provider.push(ResponseStarted(), AgentAudio(ONE_SECOND_OF_AUDIO))
+    await settle()
+    session.playback_progress(400)
+    provider.push(CallerSpeechStarted())
+    await settle()
+
+    rows = conn.execute(
+        "SELECT payload FROM call_events WHERE call_id = ? AND type = 'segment' ORDER BY id",
+        (session.call_id,),
+    ).fetchall()
+    segments = [json.loads(r["payload"]) for r in rows]
+    assert [s["lane"] for s in segments] == ["caller", "agent", "agent"]
+    first_agent, cut_off = segments[1], segments[2]
+    assert first_agent["end_ms"] - first_agent["start_ms"] == 1000
+    assert cut_off["end_ms"] - cut_off["start_ms"] == 400

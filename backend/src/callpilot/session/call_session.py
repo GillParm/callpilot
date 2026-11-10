@@ -123,6 +123,10 @@ class CallSession:
         self._vad = EnergyVAD(sample_rate=SAMPLE_RATE)
         self._speech_stopped_at: float | None = None
 
+        # Timeline segments for the call log (ms since the call started)
+        self._caller_speech_from: int | None = None
+        self._agent_speech_from: int | None = None
+
     @property
     def state(self) -> ConversationState:
         return self.executor.state
@@ -176,6 +180,7 @@ class CallSession:
             await self._barge_in(trigger="caller_text")
         self._open_caller_turn()
         self.recorder.record("transcript", {"role": "caller", "text": text})
+        self._record_segment("caller", self.recorder.elapsed_ms())
         await self.transport.send_event({"type": "transcript", "role": "caller", "text": text})
         await self.provider.send_text(text)
 
@@ -220,6 +225,8 @@ class CallSession:
                 self._caller_turn_open = False
                 self._response_audio_ms = 0.0
                 self._played_ms = None
+                if self.mode == "text":
+                    self._agent_speech_from = self.recorder.elapsed_ms()
                 await self.transport.send_event({"type": "agent.response"})
             case AgentTextDelta(text=text):
                 self._agent_text.append(text)
@@ -236,6 +243,8 @@ class CallSession:
                 )
             case AgentAudio(pcm=pcm):
                 await self._first_output()
+                if self._agent_speech_from is None:
+                    self._agent_speech_from = self.recorder.elapsed_ms()
                 self._response_audio_ms += len(pcm) / BYTES_PER_MS
                 await self.transport.send_audio(pcm)
             case ToolCallRequested():
@@ -247,8 +256,12 @@ class CallSession:
                     await self._barge_in(trigger="caller_speech")
                 self._open_caller_turn()
                 self._speech_stopped_at = None
+                self._caller_speech_from = self.recorder.elapsed_ms()
             case CallerSpeechStopped():
                 self._speech_stopped_at = self._monotonic()
+                if self._caller_speech_from is not None:
+                    self._record_segment("caller", self._caller_speech_from)
+                    self._caller_speech_from = None
             case CallerTranscript(text=text, opens_turn=opens_turn):
                 if opens_turn:
                     self._open_caller_turn()
@@ -265,6 +278,7 @@ class CallSession:
 
     async def _response_done(self, interrupted: bool) -> None:
         self._responding = False
+        self._close_agent_segment()
         if interrupted and self._agent_text:
             partial = "".join(self._agent_text)
             self._agent_text.clear()
@@ -319,11 +333,30 @@ class CallSession:
             heard_ms = int(min(self._played_ms or 0, self._response_audio_ms))
         await self.transport.clear_audio()
         await self.provider.interrupt(heard_ms)
+        self._close_agent_segment(heard_ms)
         self._response_audio_ms = 0.0
         self.recorder.record("barge_in", {"trigger": trigger, "audio_played_ms": heard_ms})
         await self.transport.send_event(
             {"type": "barge_in", "trigger": trigger, "audio_played_ms": heard_ms}
         )
+
+    # Timeline ----------------------------------------------------------------
+
+    def _record_segment(self, lane: str, start_ms: int, end_ms: int | None = None) -> None:
+        end = self.recorder.elapsed_ms() if end_ms is None else end_ms
+        self.recorder.record("segment", {"lane": lane, "start_ms": start_ms, "end_ms": end})
+
+    def _close_agent_segment(self, heard_ms: int | None = None) -> None:
+        """Record how long the agent was audible: what was sent, or heard if cut off."""
+        start = self._agent_speech_from
+        if start is None:
+            return
+        self._agent_speech_from = None
+        if self.mode == "text":
+            self._record_segment("agent", start)
+            return
+        spoken_ms = heard_ms if heard_ms is not None else self._response_audio_ms
+        self._record_segment("agent", start, start + int(spoken_ms))
 
     # Latency -----------------------------------------------------------------
 
