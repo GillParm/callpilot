@@ -42,7 +42,14 @@ class Settings(BaseSettings):
     openai_voice: str = Field(default="marin", alias="OPENAI_VOICE")
 
     gemini_model: str = Field(default="gemini-3.8-live", alias="GEMINI_MODEL")
+    gemini_text_model: str = Field(default="gemini-3.5-flash-lite", alias="GEMINI_TEXT_MODEL")
     gemini_voice: str = Field(default="Kore", alias="GEMINI_VOICE")
+
+    # Who writes after-call summaries: "auto" tries anthropic, then gemini, then a
+    # plain summary built from the call data.
+    summary_provider: Literal["auto", "anthropic", "gemini", "plain"] = Field(
+        default="auto", alias="SUMMARY_PROVIDER"
+    )
 
     anthropic_model: str = Field(default="claude-opus-5-5", alias="ANTHROPIC_MODEL")
     # A receptionist turn is short and latency-sensitive, so default to low effort.
