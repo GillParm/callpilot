@@ -41,8 +41,15 @@ class CallTool:
 
 
 @dataclass(frozen=True)
+class Wait:
+    """Hold the response open until `gate` is set (lets tests talk over the agent)."""
+
+    gate: asyncio.Event
+
+
+@dataclass(frozen=True)
 class Turn:
-    actions: Sequence[Say | CallTool] = field(default_factory=tuple)
+    actions: Sequence[Say | CallTool | Wait] = field(default_factory=tuple)
 
 
 class ScriptedProvider(RealtimeProvider):
@@ -96,6 +103,9 @@ class ScriptedProvider(RealtimeProvider):
         for action in turn.actions:
             if isinstance(action, Say):
                 self._say(action.text)
+                continue
+            if isinstance(action, Wait):
+                await action.gate.wait()
                 continue
             arguments = (
                 action.arguments(self.results) if callable(action.arguments) else action.arguments
