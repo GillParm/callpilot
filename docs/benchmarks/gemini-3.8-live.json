@@ -1,0 +1,318 @@
+{
+  "measured_at": "2026-11-10T22:31:16+00:00",
+  "provider": "gemini",
+  "model": "gemini-3.8-live",
+  "runs": 3,
+  "turns_measured": 17,
+  "ttfa_ms": {
+    "p50": 1589,
+    "p90": 2673,
+    "min": 281,
+    "max": 3074
+  },
+  "ttfa_without_tools_p50_ms": 1309,
+  "ttfa_with_tools_p50_ms": 2090,
+  "endpointing_p50_ms": 942,
+  "bookings": 2,
+  "interruptions": [
+    {
+      "reaction_ms": 255
+    },
+    {
+      "reaction_ms": 216
+    },
+    {
+      "reaction_ms": 245
+    }
+  ],
+  "calls": [
+    {
+      "provider": "gemini",
+      "model": "gemini-3.8-live",
+      "turns": [
+        {
+          "turn": 1,
+          "latency_ms": 1745,
+          "endpointing_ms": 1022,
+          "response_ms": 723,
+          "tools": [
+            "check_availability"
+          ],
+          "overlapped": false
+        },
+        {
+          "turn": 2,
+          "latency_ms": 1230,
+          "endpointing_ms": 884,
+          "response_ms": 346,
+          "tools": [],
+          "overlapped": false
+        },
+        {
+          "turn": 3,
+          "latency_ms": 20,
+          "endpointing_ms": 20,
+          "response_ms": 1,
+          "tools": [],
+          "overlapped": true
+        },
+        {
+          "turn": 4,
+          "latency_ms": 2687,
+          "endpointing_ms": 1028,
+          "response_ms": 1660,
+          "tools": [
+            "lookup_patient",
+            "book_appointment"
+          ],
+          "overlapped": false
+        },
+        {
+          "turn": 5,
+          "latency_ms": 1511,
+          "endpointing_ms": 807,
+          "response_ms": 704,
+          "tools": [
+            "book_appointment"
+          ],
+          "overlapped": false
+        },
+        {
+          "turn": 6,
+          "latency_ms": 281,
+          "endpointing_ms": 0,
+          "response_ms": 339,
+          "tools": [],
+          "overlapped": false
+        },
+        {
+          "turn": 7,
+          "latency_ms": 1589,
+          "endpointing_ms": 1099,
+          "response_ms": 490,
+          "tools": [],
+          "overlapped": false
+        }
+      ],
+      "tools": [
+        [
+          "check_availability",
+          null
+        ],
+        [
+          "lookup_patient",
+          null
+        ],
+        [
+          "book_appointment",
+          "confirmation_required"
+        ],
+        [
+          "book_appointment",
+          null
+        ]
+      ],
+      "booked": 1,
+      "interruption": {
+        "reaction_ms": 255
+      },
+      "transcript": [
+        "AGENT  Thanks for calling Brightside Dental, this is Robin. How can I help you today?",
+        "CALLER I'd like to book a teeth cleaning. Sometime next week in the morning.",
+        "AGENT  I have openings next Tuesday the seventeenth at ten AM or Wednesday the eighteenth at eleven AM. Would either of those work for you?",
+        "CALLER The first one works for me.",
+        "AGENT  Great. Before we book that, I need to verify your identity. What is your full name and date of birth?",
+        "CALLER My name is Maria Lopez.",
+        "AGENT  Thank you, Maria. Could you please provide your date of birth?",
+        "CALLER March 14th, 1988",
+        "AGENT  I can book your cleaning for next Tuesday, November 17 at 10 AM with Priya Shah. Shall I go ahead?",
+        "CALLER Yes. Please book it.",
+        "AGENT  That's all set! Your cleaning is confirmed for Tuesday, November 17th at 10 AM.",
+        "CALLER No, that's everything.",
+        "AGENT  Wonderful. Thank you for choosing Brightside",
+        "CALLER Bye.",
+        "AGENT  Goodbye! Have a great day."
+      ]
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-3.8-live",
+      "turns": [
+        {
+          "turn": 1,
+          "latency_ms": 1673,
+          "endpointing_ms": 1043,
+          "response_ms": 630,
+          "tools": [
+            "check_availability"
+          ],
+          "overlapped": false
+        },
+        {
+          "turn": 2,
+          "latency_ms": 1163,
+          "endpointing_ms": 882,
+          "response_ms": 281,
+          "tools": [],
+          "overlapped": false
+        },
+        {
+          "turn": 3,
+          "latency_ms": 2435,
+          "endpointing_ms": 1113,
+          "response_ms": 1321,
+          "tools": [
+            "lookup_patient",
+            "escalate_to_human"
+          ],
+          "overlapped": false
+        },
+        {
+          "turn": 4,
+          "latency_ms": 1309,
+          "endpointing_ms": 942,
+          "response_ms": 368,
+          "tools": [],
+          "overlapped": false
+        },
+        {
+          "turn": 5,
+          "latency_ms": 2089,
+          "endpointing_ms": 1145,
+          "response_ms": 943,
+          "tools": [],
+          "overlapped": false
+        }
+      ],
+      "tools": [
+        [
+          "check_availability",
+          null
+        ],
+        [
+          "lookup_patient",
+          null
+        ],
+        [
+          "escalate_to_human",
+          null
+        ]
+      ],
+      "booked": 0,
+      "interruption": {
+        "reaction_ms": 216
+      },
+      "transcript": [
+        "AGENT  Thanks for calling Brightside Dental, this is Robin. How can I help you today?",
+        "CALLER I'd like to book a teeth cleaning. Sometime next week in the morning.",
+        "AGENT  I have a few morning openings next week. Would Tuesday, November seventeenth at ten AM or Wednesday, November eighteenth at eleven AM work for you?",
+        "CALLER The first one works for me.",
+        "AGENT  Before we finalize the booking, could you please provide your full name and date of birth?",
+        "CALLER My name is Maria Lopez. And my date of birth is March 10th, 1988.",
+        "AGENT  I couldn't find a record for you, so I'll have a team member call you back to set up your registration.",
+        "CALLER Yes. Please book it.",
+        "AGENT  As mentioned, I'll have a team member call you back to complete your registration before we book the appointment.",
+        "CALLER No. That's everything. by",
+        "AGENT  Thank you for calling Brightside Dental. Have a wonderful day."
+      ]
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-3.8-live",
+      "turns": [
+        {
+          "turn": 1,
+          "latency_ms": 2663,
+          "endpointing_ms": 807,
+          "response_ms": 1855,
+          "tools": [
+            "check_availability"
+          ],
+          "overlapped": false
+        },
+        {
+          "turn": 2,
+          "latency_ms": 1380,
+          "endpointing_ms": 921,
+          "response_ms": 459,
+          "tools": [],
+          "overlapped": false
+        },
+        {
+          "turn": 3,
+          "latency_ms": 3074,
+          "endpointing_ms": 1045,
+          "response_ms": 2029,
+          "tools": [
+            "lookup_patient",
+            "book_appointment"
+          ],
+          "overlapped": false
+        },
+        {
+          "turn": 4,
+          "latency_ms": 1528,
+          "endpointing_ms": 850,
+          "response_ms": 677,
+          "tools": [
+            "book_appointment"
+          ],
+          "overlapped": false
+        },
+        {
+          "turn": 5,
+          "latency_ms": 299,
+          "endpointing_ms": 0,
+          "response_ms": 393,
+          "tools": [],
+          "overlapped": false
+        },
+        {
+          "turn": 6,
+          "latency_ms": 1733,
+          "endpointing_ms": 1163,
+          "response_ms": 570,
+          "tools": [],
+          "overlapped": false
+        }
+      ],
+      "tools": [
+        [
+          "check_availability",
+          null
+        ],
+        [
+          "lookup_patient",
+          null
+        ],
+        [
+          "book_appointment",
+          "confirmation_required"
+        ],
+        [
+          "book_appointment",
+          null
+        ]
+      ],
+      "booked": 1,
+      "interruption": {
+        "reaction_ms": 245
+      },
+      "transcript": [
+        "AGENT  Thanks for calling Brightside Dental, this is Robin. How can I help you today?",
+        "CALLER I'd like to book a teeth cleaning. Sometime next week in the morning.",
+        "AGENT  I have a few morning openings for a cleaning next week: Tuesday the seventeenth",
+        "CALLER The first one works for me.",
+        "AGENT  Great. Before we book that, I need to verify your details. Could you please provide your full name and date of birth?",
+        "CALLER My name is Maria Lopez. And my dateMarch 14th, 1988",
+        "AGENT  Thanks, Maria. Should I book your cleaning for Tuesday, November 17th at 10:00 AM with Priya Shah?",
+        "CALLER Yes. Please book it.",
+        "AGENT  Perfect, your appointment is booked for Tuesday, November 17th at 10:00 AM.",
+        "CALLER No. That's everything.",
+        "AGENT  You're all set! Have ",
+        "CALLER by",
+        "AGENT  Have a great day, goodbye."
+      ]
+    }
+  ]
+}
