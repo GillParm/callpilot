@@ -38,4 +38,13 @@ def create_provider(settings: Settings, mode: Mode) -> RealtimeProvider:
             model=settings.anthropic_model,
             effort=settings.anthropic_effort,
         )
+    if name == "gemini":
+        from callpilot.providers.gemini_live import GeminiLiveProvider
+
+        assert settings.gemini_api_key is not None
+        return GeminiLiveProvider(
+            api_key=settings.gemini_api_key.get_secret_value(),
+            model=settings.gemini_model,
+            voice=settings.gemini_voice,
+        )
     raise ProviderUnavailableError(f"The {name} provider is not available yet.")

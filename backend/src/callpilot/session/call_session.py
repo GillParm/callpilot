@@ -250,10 +250,11 @@ class CallSession:
             case CallerTranscript(text=text, opens_turn=opens_turn):
                 if opens_turn:
                     self._open_caller_turn()
-                self.recorder.record("transcript", {"role": "caller", "text": text})
-                await self.transport.send_event(
-                    {"type": "transcript", "role": "caller", "text": text}
-                )
+                if text:  # empty means "the caller spoke" with no transcript yet
+                    self.recorder.record("transcript", {"role": "caller", "text": text})
+                    await self.transport.send_event(
+                        {"type": "transcript", "role": "caller", "text": text}
+                    )
             case ProviderError(message=message, fatal=fatal):
                 self.recorder.record("error", {"message": message, "fatal": fatal})
                 await self.transport.send_event({"type": "error", "message": message})

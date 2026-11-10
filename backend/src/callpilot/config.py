@@ -38,6 +38,9 @@ class Settings(BaseSettings):
         default="auto", alias="TEXT_PROVIDER"
     )
 
+    gemini_model: str = Field(default="gemini-3.8-live", alias="GEMINI_MODEL")
+    gemini_voice: str = Field(default="Kore", alias="GEMINI_VOICE")
+
     anthropic_model: str = Field(default="claude-opus-5-5", alias="ANTHROPIC_MODEL")
     # A receptionist turn is short and latency-sensitive, so default to low effort.
     anthropic_effort: Literal["low", "medium", "high", "xhigh", "max"] = Field(
