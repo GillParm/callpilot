@@ -79,3 +79,22 @@ def test_call_without_a_configured_provider_fails_clearly(now: datetime) -> None
     assert error["type"] == "error"
     assert error["fatal"] is True
     assert ".env" in error["message"]
+
+
+def test_call_log_endpoints(client: TestClient) -> None:
+    with client.websocket_connect("/ws/call?mode=text") as ws:
+        call_id = ws.receive_json()["call_id"]
+        read_until(ws, "agent.done")
+        ws.send_json({"type": "caller.text", "text": "Can I book a cleaning tomorrow morning?"})
+        read_until(ws, "agent.done")
+        ws.send_json({"type": "hangup"})
+        read_until(ws, "call.ended")
+
+    [listed] = client.get("/api/calls").json()
+    assert listed["id"] == call_id
+    assert listed["stats"]["tool_calls"] == 1
+
+    detail = client.get(f"/api/calls/{call_id}").json()
+    assert any(e["type"] == "tool_call" for e in detail["events"])
+    assert client.get("/api/calls/call_missing").status_code == 404
+    assert client.get("/api/calls?limit=0").status_code == 422
