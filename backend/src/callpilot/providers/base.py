@@ -71,9 +71,14 @@ class CallerSpeechStopped:
 
 @dataclass(frozen=True)
 class CallerTranscript:
-    """What the caller said, transcribed by the provider (voice mode)."""
+    """What the caller said, transcribed by the provider (voice mode).
+
+    `opens_turn` is False when the provider already signalled this utterance
+    with `CallerSpeechStarted`, so the session doesn't count it twice.
+    """
 
     text: str
+    opens_turn: bool = True
 
 
 @dataclass(frozen=True)

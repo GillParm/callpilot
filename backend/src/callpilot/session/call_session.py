@@ -3,8 +3,18 @@
 The session sits between a transport (browser WebSocket, Twilio stream, or a
 test harness) and a model provider. It forwards caller input to the provider,
 runs every tool call through the guardrails, streams transcripts and tool
-activity to the transport, measures latency per turn and writes it all to the
-call log.
+activity to the transport, handles barge-in, measures latency per turn and
+writes it all to the call log.
+
+Barge-in, step by step:
+
+1. The provider reports that the caller started speaking (`CallerSpeechStarted`).
+2. If the agent is mid-response, or its audio is still queued on the caller's
+   side, the session tells the transport to drop queued audio and asks the
+   provider to cancel the response.
+3. The provider is told how many milliseconds of the response the caller
+   actually heard (reported by the client), so it can trim the agent's turn in
+   the conversation history to what was really said.
 """
 
 from __future__ import annotations
@@ -19,8 +29,11 @@ from typing import Any, Protocol
 
 from callpilot.agent.guardrails import GuardedToolExecutor
 from callpilot.agent.state import ConversationState
+from callpilot.audio.codecs import pcm16_to_array
+from callpilot.audio.vad import EnergyVAD
 from callpilot.calllog.recorder import CallRecorder
 from callpilot.providers.base import (
+    SAMPLE_RATE,
     AgentAudio,
     AgentTextDelta,
     AgentTextDone,
@@ -41,6 +54,14 @@ log = logging.getLogger(__name__)
 
 Event = dict[str, Any]
 
+# PCM16 mono: 2 bytes per sample.
+BYTES_PER_MS = SAMPLE_RATE * 2 // 1000
+# Client playback reports arrive every ~100 ms, so allow for that much lag
+# before deciding the caller is no longer hearing the agent.
+PLAYBACK_REPORT_SLACK_MS = 150
+# A VAD timestamp older than this belongs to an earlier turn, not this one.
+MAX_PLAUSIBLE_LATENCY_S = 15.0
+
 
 class CallTransport(Protocol):
     """Where the session sends things the caller should see or hear."""
@@ -58,7 +79,7 @@ class TurnTimer:
     """Latency bookkeeping for one caller turn."""
 
     index: int
-    caller_done_at: float
+    started_at: float
     first_output_at: float | None = None
     tool_ms: float = 0.0
     tools: list[str] = field(default_factory=list)
@@ -86,11 +107,19 @@ class CallSession:
 
         self._pump_task: asyncio.Task[None] | None = None
         self._ended = asyncio.Event()
+
+        # Agent output state
         self._responding = False
         self._agent_text: list[str] = []
+        self._response_audio_ms = 0.0  # audio sent for the current response
+        self._played_ms: int | None = None  # audio the client says it has played
+
+        # Caller turn state
         self._turn: TurnTimer | None = None
         self._turn_count = 0
-        self._played_ms: int | None = None
+        self._caller_turn_open = False
+        self._vad = EnergyVAD(sample_rate=SAMPLE_RATE)
+        self._speech_stopped_at: float | None = None
 
     @property
     def state(self) -> ConversationState:
@@ -141,10 +170,9 @@ class CallSession:
         text = text.strip()
         if not text or self.ended:
             return
-        if self._responding:
-            await self._interrupt(trigger="caller_text", audio_played_ms=None)
-        self.state.note_caller_turn()
-        self._begin_turn()
+        if self._agent_audible():
+            await self._barge_in(trigger="caller_text")
+        self._open_caller_turn()
         self.recorder.record("transcript", {"role": "caller", "text": text})
         await self.transport.send_event({"type": "transcript", "role": "caller", "text": text})
         await self.provider.send_text(text)
@@ -152,6 +180,7 @@ class CallSession:
     async def caller_audio(self, pcm: bytes) -> None:
         if self.ended or self.mode != "voice":
             return
+        self._vad.process(pcm16_to_array(pcm), now=self._monotonic())
         await self.provider.send_audio(pcm)
 
     def playback_progress(self, played_ms: int) -> None:
@@ -186,6 +215,10 @@ class CallSession:
         match event:
             case ResponseStarted():
                 self._responding = True
+                self._caller_turn_open = False
+                self._response_audio_ms = 0.0
+                self._played_ms = None
+                await self.transport.send_event({"type": "agent.response"})
             case AgentTextDelta(text=text):
                 self._agent_text.append(text)
                 if self.mode == "text":
@@ -201,25 +234,44 @@ class CallSession:
                 )
             case AgentAudio(pcm=pcm):
                 await self._first_output()
+                self._response_audio_ms += len(pcm) / BYTES_PER_MS
                 await self.transport.send_audio(pcm)
             case ToolCallRequested():
                 await self._run_tool(event)
             case ResponseDone(interrupted=interrupted):
-                self._responding = False
-                if interrupted and self._agent_text:
-                    partial = "".join(self._agent_text)
-                    self._agent_text.clear()
-                    self.recorder.record(
-                        "transcript", {"role": "agent", "text": partial, "interrupted": True}
-                    )
-                await self.transport.send_event({"type": "agent.done", "interrupted": interrupted})
-            case CallerSpeechStarted() | CallerSpeechStopped() | CallerTranscript():
-                pass  # voice-only; handled once audio support lands
+                await self._response_done(interrupted)
+            case CallerSpeechStarted():
+                if self._agent_audible():
+                    await self._barge_in(trigger="caller_speech")
+                self._open_caller_turn()
+                self._speech_stopped_at = None
+            case CallerSpeechStopped():
+                self._speech_stopped_at = self._monotonic()
+            case CallerTranscript(text=text, opens_turn=opens_turn):
+                if opens_turn:
+                    self._open_caller_turn()
+                self.recorder.record("transcript", {"role": "caller", "text": text})
+                await self.transport.send_event(
+                    {"type": "transcript", "role": "caller", "text": text}
+                )
             case ProviderError(message=message, fatal=fatal):
                 self.recorder.record("error", {"message": message, "fatal": fatal})
                 await self.transport.send_event({"type": "error", "message": message})
                 if fatal:
                     await self.hang_up(reason="provider_error")
+
+    async def _response_done(self, interrupted: bool) -> None:
+        self._responding = False
+        if interrupted and self._agent_text:
+            partial = "".join(self._agent_text)
+            self._agent_text.clear()
+            self.recorder.record(
+                "transcript", {"role": "agent", "text": partial, "interrupted": True}
+            )
+            await self.transport.send_event(
+                {"type": "transcript", "role": "agent", "text": partial, "interrupted": True}
+            )
+        await self.transport.send_event({"type": "agent.done", "interrupted": interrupted})
 
     async def _run_tool(self, request: ToolCallRequested) -> None:
         await self.transport.send_event(
@@ -247,29 +299,66 @@ class CallSession:
         await self.transport.send_event({"type": "tool.result", **payload})
         await self.provider.send_tool_result(request.call_id, request.name, outcome.result)
 
-    # Interruptions and latency --------------------------------------------------
+    # Barge-in ----------------------------------------------------------------
 
-    async def _interrupt(self, *, trigger: str, audio_played_ms: int | None) -> None:
+    def _agent_audible(self) -> bool:
+        """Is the agent still talking, from the caller's point of view?"""
+        if self._responding:
+            return True
+        if self._response_audio_ms == 0:
+            return False
+        played = self._played_ms if self._played_ms is not None else 0
+        return played + PLAYBACK_REPORT_SLACK_MS < self._response_audio_ms
+
+    async def _barge_in(self, *, trigger: str) -> None:
+        heard_ms = None
+        if self._response_audio_ms:
+            heard_ms = int(min(self._played_ms or 0, self._response_audio_ms))
         await self.transport.clear_audio()
-        await self.provider.interrupt(audio_played_ms)
-        self.recorder.record("barge_in", {"trigger": trigger, "audio_played_ms": audio_played_ms})
-        await self.transport.send_event({"type": "barge_in", "trigger": trigger})
+        await self.provider.interrupt(heard_ms)
+        self._response_audio_ms = 0.0
+        self.recorder.record("barge_in", {"trigger": trigger, "audio_played_ms": heard_ms})
+        await self.transport.send_event(
+            {"type": "barge_in", "trigger": trigger, "audio_played_ms": heard_ms}
+        )
 
-    def _begin_turn(self) -> None:
+    # Latency -----------------------------------------------------------------
+
+    def _open_caller_turn(self) -> None:
+        """Start a new caller turn, unless one is already in progress."""
+        if self._caller_turn_open:
+            return
+        self._caller_turn_open = True
+        self.state.note_caller_turn()
         self._turn_count += 1
-        self._turn = TurnTimer(index=self._turn_count, caller_done_at=self._monotonic())
+        self._turn = TurnTimer(index=self._turn_count, started_at=self._monotonic())
 
     async def _first_output(self) -> None:
         turn = self._turn
         if turn is None or turn.first_output_at is not None:
             return
-        turn.first_output_at = self._monotonic()
-        metric = {
+        now = self._monotonic()
+        turn.first_output_at = now
+        metric: Event = {
             "turn": turn.index,
-            "kind": "time_to_first_audio" if self.mode == "voice" else "time_to_first_token",
-            "latency_ms": round((turn.first_output_at - turn.caller_done_at) * 1000),
             "tool_ms": round(turn.tool_ms, 2),
             "tools": list(turn.tools),
         }
+        if self.mode == "text":
+            metric["kind"] = "time_to_first_token"
+            metric["latency_ms"] = round((now - turn.started_at) * 1000)
+        else:
+            # Measure from the caller's last voiced audio, so the number includes
+            # end-of-speech detection, just like the caller experiences it.
+            spoke_until = self._vad.last_voiced_at
+            if spoke_until is None or now - spoke_until > MAX_PLAUSIBLE_LATENCY_S:
+                spoke_until = self._speech_stopped_at or turn.started_at
+            metric["kind"] = "time_to_first_audio"
+            metric["latency_ms"] = round((now - spoke_until) * 1000)
+            if self._speech_stopped_at is not None:
+                metric["endpointing_ms"] = max(
+                    0, round((self._speech_stopped_at - spoke_until) * 1000)
+                )
+                metric["response_ms"] = round((now - self._speech_stopped_at) * 1000)
         self.recorder.record("latency", metric)
         await self.transport.send_event({"type": "metrics.turn", **metric})
