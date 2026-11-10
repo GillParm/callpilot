@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     gemini_api_key: SecretStr | None = Field(default=None, alias="GEMINI_API_KEY")
     anthropic_api_key: SecretStr | None = Field(default=None, alias="ANTHROPIC_API_KEY")
 
+    # Phone calls through Twilio Media Streams (optional).
+    twilio_auth_token: SecretStr | None = Field(default=None, alias="TWILIO_AUTH_TOKEN")
+    # Public https URL of this API, used to build the media stream URL and to
+    # verify Twilio's request signatures (which cover the exact URL called).
+    public_base_url: str | None = Field(default=None, alias="PUBLIC_BASE_URL")
+
     # Which provider runs each mode. "auto" picks the first one with a key.
     voice_provider: Literal["auto", "openai", "gemini"] = Field(
         default="auto", alias="VOICE_PROVIDER"

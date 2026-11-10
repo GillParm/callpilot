@@ -20,6 +20,7 @@ from callpilot.db.seed import seed_all
 from callpilot.providers.base import Mode, RealtimeProvider
 from callpilot.providers.factory import create_provider
 from callpilot.transports.browser import router as browser_router
+from callpilot.transports.twilio import router as twilio_router
 
 ProviderFactory = Callable[[Settings, Mode], RealtimeProvider]
 
@@ -70,6 +71,7 @@ def create_app(
 
     app.include_router(api_router)
     app.include_router(browser_router)
+    app.include_router(twilio_router)
     return app
 
 
