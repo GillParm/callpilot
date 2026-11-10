@@ -45,6 +45,18 @@ log = logging.getLogger(__name__)
 DEFAULT_MODEL = "gemini-3.8-live"
 DEFAULT_VOICE = "Kore"
 INPUT_MIME = f"audio/pcm;rate={SAMPLE_RATE}"
+# The Live WebSocket endpoint currently answers on v1alpha; v1beta returns 404.
+LIVE_API_VERSION = "v1alpha"
+
+
+def join_transcript(chunks: list[str]) -> str:
+    """Join streamed transcription chunks, adding a space where one is missing."""
+    text = ""
+    for chunk in chunks:
+        if text and chunk and text[-1] in ".,!?;:" and chunk[0].isalnum():
+            text += " "
+        text += chunk
+    return text.strip()
 
 
 def build_live_config(config: SessionConfig, voice: str) -> types.LiveConnectConfig:
@@ -110,7 +122,9 @@ class GeminiLiveProvider(RealtimeProvider):
         if config.mode != "voice":
             raise ValueError("GeminiLiveProvider only supports voice mode")
         self._config = config
-        client = genai.Client(api_key=self._api_key)
+        client = genai.Client(
+            api_key=self._api_key, http_options=types.HttpOptions(api_version=LIVE_API_VERSION)
+        )
         live_config = build_live_config(config, config.voice or self._voice)
         self._session = await self._stack.enter_async_context(
             client.aio.live.connect(model=self.model, config=live_config)
@@ -231,7 +245,7 @@ class GeminiLiveProvider(RealtimeProvider):
         else:
             # Gemini only starts a new turn after the caller said something,
             # so this opens a caller turn even if transcription is lagging.
-            text = "".join(self._caller_text).strip()
+            text = join_transcript(self._caller_text)
             self._caller_text.clear()
             self._emit(CallerTranscript(text, opens_turn=not self._caller_signalled))
         self._caller_signalled = False
@@ -240,7 +254,7 @@ class GeminiLiveProvider(RealtimeProvider):
 
     def _finish_response(self, *, interrupted: bool) -> None:
         if self._agent_text and not interrupted:
-            self._emit(AgentTextDone("".join(self._agent_text).strip()))
+            self._emit(AgentTextDone(join_transcript(self._agent_text)))
             self._agent_text.clear()
         self._responding = False
         self._emit(ResponseDone(interrupted=interrupted))
