@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from callpilot import __version__
 from callpilot.api.routes import router as api_router
+from callpilot.calllog.summarizer import Summarizer, create_summarizer
 from callpilot.config import Settings, get_settings
 from callpilot.db import connect, init_db
 from callpilot.db.seed import seed_all
@@ -27,6 +28,7 @@ def create_app(
     settings: Settings | None = None,
     *,
     provider_factory: ProviderFactory = create_provider,
+    summarizer: Summarizer | None = None,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> FastAPI:
     settings = settings or get_settings()
@@ -50,7 +52,10 @@ def create_app(
     app = FastAPI(title="CallPilot", version=__version__, lifespan=lifespan)
     app.state.settings = settings
     app.state.provider_factory = provider_factory
+    app.state.summarizer = summarizer or create_summarizer(settings)
     app.state.clock = clock
+    # Strong references to fire-and-forget work (summaries) so it isn't GC'd.
+    app.state.background_tasks = set()
 
     app.add_middleware(
         CORSMiddleware,
