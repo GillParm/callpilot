@@ -1,4 +1,4 @@
-.PHONY: help hooks up down dev-backend dev-frontend test lint typecheck check
+.PHONY: help hooks up down dev-backend dev-frontend test test-live lint typecheck check
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -18,8 +18,11 @@ dev-backend: ## Run the API with auto-reload on :8000
 dev-frontend: ## Run the web app with hot reload on :3000
 	cd frontend && npm run dev
 
-test: ## Run backend tests
+test: ## Run backend tests (offline, no API keys needed)
 	cd backend && uv run pytest
+
+test-live: ## Run the simulated caller against real models (uses API credits)
+	cd backend && uv run pytest -m live -s
 
 lint: ## Lint backend and frontend
 	cd backend && uv run ruff check . && uv run ruff format --check .
