@@ -38,6 +38,9 @@ class Settings(BaseSettings):
         default="auto", alias="TEXT_PROVIDER"
     )
 
+    openai_model: str = Field(default="gpt-realtime-2.1", alias="OPENAI_REALTIME_MODEL")
+    openai_voice: str = Field(default="marin", alias="OPENAI_VOICE")
+
     gemini_model: str = Field(default="gemini-3.8-live", alias="GEMINI_MODEL")
     gemini_voice: str = Field(default="Kore", alias="GEMINI_VOICE")
 

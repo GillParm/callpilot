@@ -38,6 +38,15 @@ def create_provider(settings: Settings, mode: Mode) -> RealtimeProvider:
             model=settings.anthropic_model,
             effort=settings.anthropic_effort,
         )
+    if name == "openai":
+        from callpilot.providers.openai_realtime import OpenAIRealtimeProvider
+
+        assert settings.openai_api_key is not None
+        return OpenAIRealtimeProvider(
+            api_key=settings.openai_api_key.get_secret_value(),
+            model=settings.openai_model,
+            voice=settings.openai_voice,
+        )
     if name == "gemini":
         from callpilot.providers.gemini_live import GeminiLiveProvider
 

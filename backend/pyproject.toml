@@ -12,6 +12,7 @@ dependencies = [
     "anthropic>=1.0",
     "numpy>=2.1",
     "google-genai>=3.1",
+    "websockets>=14",
 ]
 
 [dependency-groups]
