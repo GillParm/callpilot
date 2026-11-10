@@ -56,14 +56,18 @@ flowchart LR
 
     web["Next.js console<br/>and call log"]
 
-    browser -- "WebSocket: PCM16 24 kHz + JSON events" --> session
-    phone -- "WebSocket" --> twilio --> session
-    session <-- "RealtimeProvider interface" --> openai & gemini & claude
-    session --> guard --> db
-    session -- "events" --> db
+    browser -->|"WebSocket: PCM16 24 kHz and JSON events"| session
+    phone -->|WebSocket| twilio
+    twilio --> session
+    session <-->|RealtimeProvider| openai
+    session <--> gemini
+    session <--> claude
+    session --> guard
+    guard --> db
+    session -->|events| db
     db --> summary
     mcp --> db
-    web -- "REST" --> api
+    web -->|"REST: config and call log"| db
 ```
 
 One call is one `CallSession`. It forwards caller audio (or text) to a provider, runs every tool call the model makes through the guardrails, streams transcripts and tool activity back to the caller's screen, and appends everything to the call log as it happens. Everything inside the backend is PCM16 mono at 24 kHz; each edge converts to and from that.
