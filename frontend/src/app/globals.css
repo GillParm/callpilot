@@ -1,26 +1,53 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * CallPilot tokens. Cool "chart paper" ground, navy ink, and one colour per
+ * participant in a call. Lane colours were checked for colour-vision
+ * deficiency separation; lanes are also labelled, so colour is never the only cue.
+ */
+@theme {
+  --font-sans: var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-atkinson-mono), ui-monospace, monospace;
+
+  --color-paper: #f2f4f7;
+  --color-surface: #ffffff;
+  --color-ink: #18233a;
+  --color-ink-muted: #556074;
+  --color-rule: #d9dee6;
+  --color-rule-strong: #b9c1cd;
+
+  --color-caller: #2563c9;
+  --color-agent: #008b74;
+  --color-tool: #a86a12;
+  --color-interrupt: #c2255c;
+
+  --color-caller-wash: #e8effb;
+  --color-agent-wash: #e3f4f0;
+  --color-tool-wash: #f8efe2;
+  --color-interrupt-wash: #fbe9ef;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01";
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-caller);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
