@@ -1,7 +1,8 @@
 # `docker compose up --build` starts the whole stack:
 #   web  -> http://localhost:3000
 #   api  -> http://localhost:8000 (OpenAPI docs at /docs)
-# Put your API keys in .env (see .env.example).
+# Put your API keys in .env (see .env.example). If those ports are taken, set
+# WEB_PORT / API_PORT, e.g. `WEB_PORT=3100 docker compose up --build`.
 
 services:
   backend:
@@ -11,9 +12,9 @@ services:
         required: false
     environment:
       DATABASE_PATH: /app/data/callpilot.db
-      CORS_ORIGINS: '["http://localhost:3000"]'
+      CORS_ORIGINS: '["http://localhost:${WEB_PORT:-3000}"]'
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:8000"
     volumes:
       - callpilot-data:/app/data
     restart: unless-stopped
@@ -21,10 +22,10 @@ services:
   frontend:
     build: ./frontend
     environment:
-      BACKEND_PUBLIC_URL: http://localhost:8000
+      BACKEND_PUBLIC_URL: http://localhost:${API_PORT:-8000}
       BACKEND_INTERNAL_URL: http://backend:8000
     ports:
-      - "3000:3000"
+      - "${WEB_PORT:-3000}:3000"
     depends_on:
       backend:
         condition: service_healthy
