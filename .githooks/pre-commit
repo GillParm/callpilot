@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Refuse commits that would leak secrets. Enable with: make hooks
+set -euo pipefail
+
+fail() { printf '\n\033[31mpre-commit: %s\033[0m\n\n' "$1" >&2; exit 1; }
+
+# 1. Never commit env files (the template is fine).
+while IFS= read -r path; do
+  case "$(basename "$path")" in
+    .env.example) ;;
+    .env|.env.*|*.tfvars|*.pem|*.key|*service-account*.json)
+      fail "refusing to commit '$path'. It can hold secrets; keep it local." ;;
+  esac
+done < <(git diff --cached --name-only --diff-filter=ACMR)
+
+# 2. Scan the staged changes for anything that looks like a credential.
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks git --pre-commit --staged --redact --no-banner --exit-code 1 . \
+    || fail "gitleaks found a possible secret in the staged changes (see above)."
+else
+  # Fallback when gitleaks isn't installed: common key formats.
+  pattern='(sk-ant-[A-Za-z0-9_-]{20,}|sk-(proj-)?[A-Za-z0-9_-]{32,}|AIza[0-9A-Za-z_-]{35}|SK[0-9a-f]{32}|-----BEGIN [A-Z ]*PRIVATE KEY-----)'
+  if git diff --cached -U0 --no-color | grep '^+' | grep -Eq "$pattern"; then
+    fail "the staged changes contain something that looks like an API key."
+  fi
+fi

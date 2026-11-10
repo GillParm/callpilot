@@ -1,7 +1,10 @@
-.PHONY: help up down dev-backend dev-frontend test lint typecheck check
+.PHONY: help hooks up down dev-backend dev-frontend test lint typecheck check
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
+
+hooks: ## Install the git hooks that block committed secrets
+	git config core.hooksPath .githooks
 
 up: ## Build and start the full stack with docker compose
 	docker compose up --build
