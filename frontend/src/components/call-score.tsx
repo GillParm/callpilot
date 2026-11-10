@@ -63,8 +63,13 @@ export function CallScore({ segments, latency, bargeIns, nowMs }: CallScoreProps
       <div className="grid grid-cols-[4rem_1fr] gap-x-3">
         <div aria-hidden />
         <div className="relative h-6 text-xs text-ink-muted" aria-hidden>
-          {ticks.map((t) => (
-            <span key={t} className="absolute -translate-x-1/2 tabular-nums" style={{ left: x(t) }}>
+          {ticks.map((t, i) => (
+            <span
+              key={t}
+              // On narrow screens every other label is enough.
+              className={`absolute -translate-x-1/2 tabular-nums ${i % 2 ? "hidden sm:inline" : ""}`}
+              style={{ left: x(t) }}
+            >
               {clock(t)}
             </span>
           ))}

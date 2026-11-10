@@ -74,7 +74,7 @@ export function CallConsole({ backendUrl, config }: { backendUrl: string; config
           <div
             role="radiogroup"
             aria-label="How to talk to Robin"
-            className="flex rounded-md border border-rule-strong bg-surface p-0.5 text-sm font-semibold"
+            className="flex w-fit rounded-md border border-rule-strong bg-surface p-0.5 text-sm font-semibold"
           >
             {(
               [
