@@ -31,7 +31,7 @@ const OUTCOMES: Record<string, string> = {
   cancelled: "Appointment cancelled",
   rescheduled: "Appointment moved",
   escalated: "Handed to the clinic team",
-  info: "Questions answered",
+  info: "No changes made",
   abandoned: "Caller hung up",
 };
 
