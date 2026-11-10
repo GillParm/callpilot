@@ -37,7 +37,7 @@ jobs:
         run: uv run pytest -q
 
   frontend:
-    name: Frontend (eslint, tsc, build)
+    name: Frontend (eslint, prettier, tsc, vitest, build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -52,8 +52,12 @@ jobs:
       - run: npm ci
       - name: ESLint
         run: npm run lint
+      - name: Prettier
+        run: npm run format:check
       - name: TypeScript
         run: npm run typecheck
+      - name: Vitest
+        run: npm test
       - name: Build
         run: npm run build
 
