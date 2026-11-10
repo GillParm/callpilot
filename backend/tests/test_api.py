@@ -12,7 +12,7 @@ from callpilot.config import Settings
 from callpilot.main import create_app
 from callpilot.providers.base import Mode, RealtimeProvider
 from callpilot.providers.scripted import ScriptedProvider
-from tests.test_simulated_caller import BOOKING_SCRIPT
+from tests.scripts import BOOKING_SCRIPT
 
 
 def offline_settings(**overrides: Any) -> Settings:
