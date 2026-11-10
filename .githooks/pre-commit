@@ -15,7 +15,7 @@ done < <(git diff --cached --name-only --diff-filter=ACMR)
 
 # 2. Scan the staged changes for anything that looks like a credential.
 if command -v gitleaks >/dev/null 2>&1; then
-  gitleaks git --pre-commit --staged --redact --no-banner --exit-code 1 . \
+  gitleaks git --pre-commit --staged --redact --no-banner --log-level warn --exit-code 1 . \
     || fail "gitleaks found a possible secret in the staged changes (see above)."
 else
   # Fallback when gitleaks isn't installed: common key formats.
