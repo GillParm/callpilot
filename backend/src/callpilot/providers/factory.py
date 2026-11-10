@@ -55,5 +55,6 @@ def create_provider(settings: Settings, mode: Mode) -> RealtimeProvider:
             api_key=settings.gemini_api_key.get_secret_value(),
             model=settings.gemini_model,
             voice=settings.gemini_voice,
+            silence_ms=settings.gemini_silence_ms,
         )
     raise ProviderUnavailableError(f"The {name} provider is not available yet.")

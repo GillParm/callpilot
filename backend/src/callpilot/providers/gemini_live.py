@@ -44,6 +44,9 @@ log = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "gemini-3.8-live"
 DEFAULT_VOICE = "Kore"
+# How much silence ends the caller's turn. Shorter replies sooner but cuts
+# people off at natural pauses; see the README's latency section.
+DEFAULT_SILENCE_MS = 500
 INPUT_MIME = f"audio/pcm;rate={SAMPLE_RATE}"
 # The Live WebSocket endpoint currently answers on v1alpha; v1beta returns 404.
 LIVE_API_VERSION = "v1alpha"
@@ -59,7 +62,9 @@ def join_transcript(chunks: list[str]) -> str:
     return text.strip()
 
 
-def build_live_config(config: SessionConfig, voice: str) -> types.LiveConnectConfig:
+def build_live_config(
+    config: SessionConfig, voice: str, silence_ms: int = DEFAULT_SILENCE_MS
+) -> types.LiveConnectConfig:
     declarations = [
         types.FunctionDeclaration(**d) for d in gemini_function_declarations(config.tools)
     ]
@@ -79,7 +84,7 @@ def build_live_config(config: SessionConfig, voice: str) -> types.LiveConnectCon
                 start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_HIGH,
                 end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_HIGH,
                 prefix_padding_ms=20,
-                silence_duration_ms=500,
+                silence_duration_ms=silence_ms,
             ),
             activity_handling=types.ActivityHandling.START_OF_ACTIVITY_INTERRUPTS,
         ),
@@ -100,10 +105,12 @@ class GeminiLiveProvider(RealtimeProvider):
         api_key: str,
         model: str = DEFAULT_MODEL,
         voice: str = DEFAULT_VOICE,
+        silence_ms: int = DEFAULT_SILENCE_MS,
     ) -> None:
         super().__init__(model=model)
         self._api_key = api_key
         self._voice = voice
+        self._silence_ms = silence_ms
         self._config: SessionConfig | None = None
         self._stack = contextlib.AsyncExitStack()
         self._session: Any = None
@@ -125,7 +132,7 @@ class GeminiLiveProvider(RealtimeProvider):
         client = genai.Client(
             api_key=self._api_key, http_options=types.HttpOptions(api_version=LIVE_API_VERSION)
         )
-        live_config = build_live_config(config, config.voice or self._voice)
+        live_config = build_live_config(config, config.voice or self._voice, self._silence_ms)
         self._session = await self._stack.enter_async_context(
             client.aio.live.connect(model=self.model, config=live_config)
         )

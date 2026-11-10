@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     gemini_model: str = Field(default="gemini-3.8-live", alias="GEMINI_MODEL")
     gemini_text_model: str = Field(default="gemini-3.5-flash-lite", alias="GEMINI_TEXT_MODEL")
     gemini_voice: str = Field(default="Kore", alias="GEMINI_VOICE")
+    gemini_silence_ms: int = Field(default=500, ge=100, le=2000, alias="GEMINI_SILENCE_MS")
 
     # Who writes after-call summaries: "auto" tries anthropic, then gemini, then a
     # plain summary built from the call data.
